@@ -412,11 +412,11 @@ Productionの安全なDemo Datasetを使い、次の5枚をポートフォリオ
 2. URL Result Table
    ![HTTP Status、Input URL、Final URL、Title、内部外部Link、Redirect、Response Time、Issueを一覧表示するURL監査結果Table](docs/screenshots/02-url-result-table.png)
 3. Broken Links
-   ![404と410をBroken Links専用Viewで独立表示し再チェックできる画面](docs/screenshots/03-broken-links.png)
+   ![404と410をBroken Links専用Viewで独立表示しError対象だけを再チェックできる画面](docs/screenshots/03-broken-links.png)
 4. Redirect / Metadata Detail
    ![301から302を経て200へ到達するRedirect ChainとTitle、Description、Canonical、H1を表示する監査詳細Drawer](docs/screenshots/04-redirect-metadata-detail.png)
 5. Export / Crawl Progress
-   ![実URL進捗、Concurrency、Depth、robots設定とCSV・XLSX出力操作を示す監査Workspace](docs/screenshots/05-export-crawl-progress.png)
+   ![実URL進捗、Concurrency 3、Depth、robots設定とCSV・XLSX出力操作を示すWeb監査Workspace](docs/screenshots/05-export-crawl-progress.png)
 
 ## Known Limitations
 

@@ -18,7 +18,7 @@
 | Vercel Production Deploy | **PASS** | 2026-08-24 23:48頃 | [Production](https://web-url-audit-tool.vercel.app) / `dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX` |
 | Production API verifier | **PASS** | 2026-08-24 23:49頃 | **Passed: 8 / 8, Failed: 0**（3,734 ms） |
 | Production Browser QA | **PASS（確認範囲）** | 2026-08-24 23:22–23:49頃 | Production実機、1280 × 720 / 768 × 1024 / 390 × 844 |
-| GitHub公開・Secret Scan | **保留（公開前）** | 2026-08-24 JST | Repository公開、Commit SHA、最終Secret Scanは未確認 |
+| GitHub公開・Secret Scan | **PASS** | 2026-08-25 00:02頃 | Public / `main` / 実装Commit `67821a5` / Gitleaks漏えい0件 |
 | Screenshot 5枚 | **PASS** | 2026-08-24 23:25頃 | Production Demo / Crawlの実結果から5 / 5取得 |
 
 ### Final summary
@@ -35,7 +35,9 @@ Production URL: https://web-url-audit-tool.vercel.app
 Production deployment ID: dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX
 Production page HTTP: 200
 Production API verification: 8/8 passed
-GitHub URL: pending publication (planned: https://github.com/shunsoco-stack/web-url-audit-tool)
+GitHub URL: https://github.com/shunsoco-stack/web-url-audit-tool
+Verified implementation commit: 67821a517f37343fefb41751d47c042790d0b7ad
+Secret scan: Gitleaks PASS, no tracked leaks
 Screenshot files: 5/5 present
 ```
 
@@ -308,11 +310,11 @@ Vercel Firewall / WAF設定のProduction検証は未実施です。上記はAppl
 - [x] Browser extension、個人情報、Token、DevTools、Local pathが写っていない。
 - [x] 主要Textと数値が読める解像度である。
 - [x] 画像の切り抜きでStatus LabelやIssue理由が欠落していない。
-- [ ] READMEと掲載PromptのPath、Caption、Altが一致する。
+- [x] READMEと掲載PromptのPath、Caption、Altが一致する。
 
 ## GitHub / Secret Scan
 
-**状態: 保留。** このQA記録更新時点ではGitHub Repositoryはまだ公開前で、Commit SHAと最終Secret Scan結果は未確認です。下記Checklistは公開担当が実測後に更新します。
+**状態: PASS。** [shunsoco-stack/web-url-audit-tool](https://github.com/shunsoco-stack/web-url-audit-tool) をPublic公開し、既定Branch `main`、Production Homepage、READMEの匿名HTTP 200を確認しました。実装Commitは `67821a517f37343fefb41751d47c042790d0b7ad` です。
 
 ```bash
 git status --short
@@ -320,13 +322,13 @@ git diff --check
 git grep -nEi "(api[_-]?key|secret|token|password|private[_-]?key)"
 ```
 
-- [ ] `.env` / `.env.local` が追跡されていない。
-- [ ] `.vercel/` が追跡されていない。
-- [ ] PEM、Key、P12 / PFX、credential JSON、service account JSONがない。
-- [ ] ScreenshotにSecretや個人情報がない。
-- [ ] 検索語に一致した通常コードを人が確認し、誤検知とSecretを区別した。
-- [ ] 利用可能ならGitleaks等の専用scanner結果を記録した。
-- [ ] GitHub URLが公開状態でREADMEを表示できる。
+- [x] `.env` / `.env.local` が追跡されていない。
+- [x] `.vercel/` が追跡されていない。
+- [x] PEM、Key、P12 / PFX、credential JSON、service account JSONがない。
+- [x] ScreenshotにSecretや個人情報がない。
+- [x] 検索語に一致した通常コードを人が確認し、誤検知とSecretを区別した。
+- [x] GitleaksでGit履歴を走査し、追跡対象の漏えい0件を確認した。
+- [x] GitHub URLがPublic状態でHTTP 200となり、READMEを表示できる。
 
 ## Release Gate
 
@@ -341,10 +343,10 @@ git grep -nEi "(api[_-]?key|secret|token|password|private[_-]?key)"
 - [x] CSV / XLSXを実際にDownloadし、CSV 6 rows / 16列、XLSX 2 sheets / 6結果を解析確認。
 - [x] Production verifierでPrivate IP blockがPassし、拡張SSRF policyはVitestでPass。
 - [x] 5枚のProduction Screenshotが存在。
-- [ ] GitHub Repositoryが公開され、Secret ScanがPass。
-- [ ] README、QA、掲載PromptのURL・実装範囲・制約が一致。
+- [x] GitHub Repositoryが公開され、Secret ScanがPass。
+- [x] README、QA、掲載PromptのURL・実装範囲・制約が一致。
 
-現時点のRelease Gate残件は、GitHub公開・最終Secret Scan、公開URL反映後の文書整合確認です。「完成・公開確認済み」の最終判定はこれらの完了後に行います。
+Release Gateはすべて完了しました。このBuildを「完成・公開確認済み」と判定します。
 
 ## Known QA Boundaries
 
