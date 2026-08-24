@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   demoUrls,
   extractUrlsFromCsv,
+  firstHttpOrigin,
   normalizeInputUrl,
   parseCsvRows,
   parsePastedUrls,
   uniqueUrls,
+  urlScopeForOrigin,
 } from "../input";
 
 describe("normalizeInputUrl", () => {
@@ -59,6 +61,29 @@ describe("URL list input", () => {
       "https://one.example",
       "https://two.example",
     ]);
+  });
+
+  it("uses the first valid HTTP origin as the internal/external classification base", () => {
+    expect(
+      firstHttpOrigin([
+        "not a url",
+        "ftp://files.example/archive",
+        "Primary.Example/path",
+        "https://outside.example/",
+      ]),
+    ).toBe("https://primary.example");
+    expect(firstHttpOrigin(["invalid", "mailto:team@example.com"])).toBeUndefined();
+  });
+
+  it("classifies successful and failed audit rows against the run origin", () => {
+    expect(urlScopeForOrigin("https://primary.example/a", "https://primary.example")).toBe(
+      "internal",
+    );
+    expect(urlScopeForOrigin("https://outside.example/", "https://primary.example")).toBe(
+      "external",
+    );
+    expect(urlScopeForOrigin("not a url", "https://primary.example")).toBe("external");
+    expect(urlScopeForOrigin("not a url", undefined)).toBe("internal");
   });
 });
 

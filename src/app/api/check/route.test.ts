@@ -151,9 +151,9 @@ describe("POST /api/check", () => {
     await Promise.all(active);
   });
 
-  it("limits one client to sixty checks per minute", async () => {
+  it("allows a full audit plus recheck while limiting one client per minute", async () => {
     const headers = { "X-Real-IP": "203.0.113.222" };
-    for (let index = 0; index < 60; index += 1) {
+    for (let index = 0; index < 240; index += 1) {
       const response = await POST(
         request(JSON.stringify({ url: "https://rate-limit.example/" }), headers),
       );
@@ -164,6 +164,6 @@ describe("POST /api/check", () => {
       request(JSON.stringify({ url: "https://rate-limit.example/" }), headers),
     );
     expect(rejected.status).toBe(429);
-    expect(auditUrlMock).toHaveBeenCalledTimes(60);
+    expect(auditUrlMock).toHaveBeenCalledTimes(240);
   });
 });

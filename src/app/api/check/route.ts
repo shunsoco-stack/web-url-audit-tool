@@ -8,12 +8,15 @@ export const dynamic = "force-dynamic";
 
 const MAX_CONTENT_LENGTH = 16 * 1024;
 const WINDOW_MS = 60_000;
-const MAX_REQUESTS_PER_WINDOW = 60;
+const MAX_REQUESTS_PER_WINDOW = 240;
+const MAX_RATE_BUCKETS = 1_000;
 const MAX_ACTIVE_CHECKS = 6;
 const MAX_ACTIVE_PER_ORIGIN = 3;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 const activeByOrigin = new Map<string, number>();
 let activeChecks = 0;
+
+class RequestBodyTooLargeError extends Error {}
 
 function clientKey(request: Request): string {
   return (
@@ -25,7 +28,7 @@ function clientKey(request: Request): string {
 
 function allowRequest(request: Request): { allowed: boolean; remaining: number } {
   const now = Date.now();
-  if (rateBuckets.size > 1_000) {
+  if (rateBuckets.size >= MAX_RATE_BUCKETS) {
     for (const [bucketKey, value] of rateBuckets) {
       if (value.resetAt <= now) rateBuckets.delete(bucketKey);
     }
@@ -33,14 +36,45 @@ function allowRequest(request: Request): { allowed: boolean; remaining: number }
   const key = clientKey(request);
   const bucket = rateBuckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
+    rateBuckets.delete(key);
+    while (rateBuckets.size >= MAX_RATE_BUCKETS) {
+      const oldestKey = rateBuckets.keys().next().value as string | undefined;
+      if (oldestKey === undefined) break;
+      rateBuckets.delete(oldestKey);
+    }
     rateBuckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - 1 };
   }
   bucket.count += 1;
+  rateBuckets.delete(key);
+  rateBuckets.set(key, bucket);
   return {
     allowed: bucket.count <= MAX_REQUESTS_PER_WINDOW,
     remaining: Math.max(0, MAX_REQUESTS_PER_WINDOW - bucket.count),
   };
+}
+
+async function readBodyWithinLimit(request: Request): Promise<string> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      size += value.byteLength;
+      if (size > MAX_CONTENT_LENGTH) {
+        await reader.cancel();
+        throw new RequestBodyTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8");
 }
 
 function json(
@@ -125,12 +159,12 @@ export async function POST(request: Request): Promise<Response> {
 
   let body: unknown;
   try {
-    const rawBody = await request.text();
-    if (Buffer.byteLength(rawBody, "utf8") > MAX_CONTENT_LENGTH) {
+    const rawBody = await readBodyWithinLimit(request);
+    body = JSON.parse(rawBody);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
       return json({ error: "Request body is too large" }, 413, rate.remaining);
     }
-    body = JSON.parse(rawBody);
-  } catch {
     return json({ error: "Malformed JSON" }, 400, rate.remaining);
   }
   if (!isBody(body)) {

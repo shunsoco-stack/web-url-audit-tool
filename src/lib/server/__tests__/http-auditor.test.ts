@@ -97,7 +97,7 @@ describe("requestOneHop safety limits", () => {
     expect(response.destroyed).toBe(true);
   });
 
-  it("caps a robots response at 128 KiB before caching or parsing", async () => {
+  it("caps a robots response at 128 KiB and marks the policy as truncated", async () => {
     const response = new FakeResponse();
     const { factory } = fakeFactory(response, (stream) => {
       stream.emit("data", Buffer.alloc(MAX_ROBOTS_BODY_BYTES + 4096, 97));
@@ -113,7 +113,28 @@ describe("requestOneHop safety limits", () => {
 
     expect(Buffer.byteLength(result.body)).toBe(MAX_ROBOTS_BODY_BYTES);
     expect(result.bodyReadable).toBe(true);
+    expect(result.bodyTruncated).toBe(true);
     expect(response.destroyed).toBe(true);
+  });
+
+  it("keeps a complete response exactly at the body limit readable", async () => {
+    const response = new FakeResponse();
+    const { factory } = fakeFactory(response, (stream) => {
+      stream.emit("data", Buffer.alloc(MAX_ROBOTS_BODY_BYTES, 97));
+      stream.emit("end");
+    });
+
+    const result = await requestOneHop("http://8.8.8.8/robots.txt", {
+      deadlineAt: Date.now() + 1_000,
+      signal: new AbortController().signal,
+      maxBodyBytes: MAX_ROBOTS_BODY_BYTES,
+      requestFactory: factory,
+    });
+
+    expect(Buffer.byteLength(result.body)).toBe(MAX_ROBOTS_BODY_BYTES);
+    expect(result.bodyReadable).toBe(true);
+    expect(result.bodyTruncated).toBe(false);
+    expect(response.destroyed).toBe(false);
   });
 
   it("marks an unexpectedly compressed response body as unreadable", async () => {
@@ -132,6 +153,7 @@ describe("requestOneHop safety limits", () => {
 
     expect(result.body).toBe("");
     expect(result.bodyReadable).toBe(false);
+    expect(result.bodyTruncated).toBe(false);
     expect(response.destroyed).toBe(true);
   });
 });
@@ -150,6 +172,7 @@ describe("redirect policy hook", () => {
         contentType: "text/html",
         body: "",
         bodyReadable: false,
+        bodyTruncated: false,
       };
     });
 

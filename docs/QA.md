@@ -12,12 +12,12 @@
 | --- | --- | --- | --- |
 | `npm run lint` | **PASS** | 2026-08-24 JST | ESLint error 0 |
 | `npm run typecheck` | **PASS** | 2026-08-24 JST | `next typegen && tsc --noEmit` error 0 |
-| `npm run test` | **PASS** | 2026-08-24 JST | **Test Files: 8 / Tests: 126 / Passed: 126 / Failed: 0** |
+| `npm run test` | **PASS** | 2026-08-24 JST | **Test Files: 8 / Tests: 134 / Passed: 134 / Failed: 0** |
 | `npm run build` | **PASS** | 2026-08-24 JST | Next.js Production build成功 |
-| `npm run verify` | **PASS** | 2026-08-24 23:30頃 | lint → typecheck → 126 Test → Production buildを単一commandで完走 |
-| Vercel Production Deploy | **PASS** | 2026-08-24 23:22頃 | [Production](https://web-url-audit-tool.vercel.app) / `dpl_3G5NnbMZhC2BXDDgMC3C2YekR5Pi` |
-| Production API verifier | **PASS** | 2026-08-24 23:22頃 | **Passed: 8 / 8, Failed: 0**（4,111 ms） |
-| Production Browser QA | **PASS（確認範囲）** | 2026-08-24 23:22–23:25頃 | Production実機、1280 × 720 / 768 × 1024 / 390 × 844 |
+| `npm run verify` | **PASS** | 2026-08-24 23:42頃 | lint → typecheck → 134 Test → Production buildを単一commandで完走 |
+| Vercel Production Deploy | **PASS** | 2026-08-24 23:48頃 | [Production](https://web-url-audit-tool.vercel.app) / `dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX` |
+| Production API verifier | **PASS** | 2026-08-24 23:49頃 | **Passed: 8 / 8, Failed: 0**（3,734 ms） |
+| Production Browser QA | **PASS（確認範囲）** | 2026-08-24 23:22–23:49頃 | Production実機、1280 × 720 / 768 × 1024 / 390 × 844 |
 | GitHub公開・Secret Scan | **保留（公開前）** | 2026-08-24 JST | Repository公開、Commit SHA、最終Secret Scanは未確認 |
 | Screenshot 5枚 | **PASS** | 2026-08-24 23:25頃 | Production Demo / Crawlの実結果から5 / 5取得 |
 
@@ -27,12 +27,12 @@
 Automated checks: lint / typecheck / Vitest / build PASS
 npm run verify (single command): passed
 Test Files: 8
-Tests: 126
-Passed: 126
+Tests: 134
+Passed: 134
 Failed: 0
 
 Production URL: https://web-url-audit-tool.vercel.app
-Production deployment ID: dpl_3G5NnbMZhC2BXDDgMC3C2YekR5Pi
+Production deployment ID: dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX
 Production page HTTP: 200
 Production API verification: 8/8 passed
 GitHub URL: pending publication (planned: https://github.com/shunsoco-stack/web-url-audit-tool)
@@ -83,6 +83,8 @@ ESLint
 - Link数上限
 - Metadata / Anchor Text長の上限
 - Duplicate Title用normalize
+- 壊れたTag、閉じTag欠落、1.5 MBの敵対的HTMLをboundedに解析
+- comment / script / style内の偽Tagを抽出しないこと
 
 #### Result rules
 
@@ -124,6 +126,8 @@ ESLint
 - 最長一致Rule
 - 同長RuleでAllow優先
 - wildcard、末尾anchor、query string
+- 多数wildcardを線形Matcherで処理するperformance regression
+- 128 KiB超で切れた本文を完全なPolicyとして扱わないこと
 - 適用Ruleがない場合の許可
 
 #### `/api/check`
@@ -157,7 +161,7 @@ npm run verify:production -- https://web-url-audit-tool.vercel.app
 
 ```text
 Production verification: 8 passed, 0 failed
-Elapsed: 4111 ms
+Elapsed: 3734 ms
 
 PASS 200 + Metadata
 PASS Redirect Chain (301 → 302 → 200)
@@ -203,7 +207,7 @@ Production Browserのconsoleは、Demo、Crawl、Filter、Detail、Export操作�
 - [x] 最大URL数を5〜100で設定できる。
 - [x] robots.txt尊重が既定で有効である。
 - [x] 同一Originの内部Link CrawlがProduction fixtureで6 / 6完了する。
-- [ ] 外部Linkは発見数へ反映されるがCrawlされない。
+- [x] 外部Linkは発見数へ反映されるがCrawlされない。
 - [x] Production fixtureのCrawlがDepth / URL上限内で6 / 6完了する。
 
 ### Dashboard / Results
@@ -214,6 +218,7 @@ Production Browserのconsoleは、Demo、Crawl、Filter、Detail、Export操作�
 - [x] Input URL、Final URL、Title、Link Scope、Redirect、Response、Issueを表示する。
 - [ ] Blocked / Invalid URLがclickable external linkにならない。
 - [ ] Status、Issue、内部 / 外部LinkでFilterできる。
+- [x] 別Originを含む2 URL監査でExternal Link Filterが1 / 2件へ絞り込む。
 - [ ] URL / Final URL / Title / Description / H1 / Issueを検索できる。
 - [ ] Filter結果0件のEmpty stateからFilterを解除できる。
 
@@ -233,7 +238,7 @@ Production Browserのconsoleは、Demo、Crawl、Filter、Detail、Export操作�
 - [ ] Errorのみ再チェックが404、410、4xx、5xx、Blocked、Failedを対象にする。
 - [ ] 詳細Drawerから単一URLを再チェックできる。
 - [ ] 再チェック後のResultで元Rowが置き換わる。
-- [ ] 前回Snapshotとの新規Broken、修復済み、新規Redirect件数を表示する。
+- [x] 前回Snapshotとの比較で新規Redirect 1件を表示する。
 - [ ] Reload後も同一Browserの最新Snapshotを次回比較に利用できる。
 - [ ] localStorage unavailable / fullでも通常監査が継続する。
 
@@ -277,7 +282,7 @@ Production Browserのconsoleは、Demo、Crawl、Filter、Detail、Export操作�
 
 - [ ] 上記InputがResponse TimeなしのBlocked / Failed Rowとして表示される。
 - [ ] Input URLはDetailに表示されるが、新しいTabで開くLinkにならない。
-- [ ] `/api/check` のResponseに `Cache-Control: no-store` がある。
+- [x] Production `/api/check` のResponseに `Cache-Control: no-store` がある。
 - [x] App responseに `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy` がある。
 
 Vercel Firewall / WAF設定のProduction検証は未実施です。上記はApplicationのSSRF policyとresponse headerの検証記録であり、Platform firewallが有効であるという主張ではありません。

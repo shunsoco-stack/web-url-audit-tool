@@ -135,7 +135,7 @@ Dashboardは次をリアルタイム集計します。
 - Slow
 - Missing Title
 - Missing Metadata
-- Internal / External
+- Internal / External（URL一覧は先頭の有効なHTTP(S) URL、Crawlは起点URLのOriginを基準に分類）
 - URL、Final URL、Title、Description、H1、IssueのKeyword検索
 
 Broken Linksは404 / 410専用Viewで独立表示します。詳細DrawerではRedirect Chain、Metadata、内部・外部Link、Issue Codeを確認できます。
@@ -221,13 +221,16 @@ UIの「安全なDemo」は次の7 URLを監査します。
 | HTML Body取得上限 | 1,500,000 byte |
 | Response Header上限 | 32 KiB |
 | API JSON Body上限 | 16 KiB |
-| API Rate bucket | 1 Client Keyあたり60 Request / 60秒 |
+| API Rate bucket | 1 Client Keyあたり240 Request / 60秒 |
+| API Rate bucket保持上限 | 1,000 Client Key（LRU） |
 | robots.txt Body取得上限 | 128 KiB |
 | robots.txt cache | 最大128 Origin / TTL 10分 |
 
-API Rate bucketとBackend同時Check counterはFunction instanceのmemory上にある簡易制御です。複数Instanceで共有される永続的・分散型の制御ではありません。
+API JSON BodyはStreamを読みながら16 KiB超過時点で中断します。Rate bucketとBackend同時Check counterはFunction instanceのmemory上にある簡易制御で、bucket自体もLRUで最大1,000 Keyに制限しています。複数Instanceで共有される永続的・分散型の制御ではありません。
+240 Requestのbucketは最大100 URLの初回監査と全件再チェックを同一Window内で完了できる余裕を持たせ、実際の同時Outbound数はClient 3・Backend 6・同一Origin 3の各上限で抑えます。
 
 Outbound Requestは `Accept-Encoding: identity` を送ります。圧縮された応答が返った場合は本文をMetadata解析せず、Status等だけを扱います。TLS certificate検証は有効です。
+HTML / Anchor抽出は上限付きの単方向Scannerで行い、閉じTagがない壊れたHTMLでも入力長に対してboundedに処理します。robots wildcard判定も正規表現ではなく線形Matcherを使用し、128 KiBを超えて途中で切れたrobots本文は許可判定に使わずFail-closedで拒否します。
 
 ### robots.txt
 
@@ -355,11 +358,11 @@ Production verifierは次の8 caseをDeploy先で直列実行します。
 npm run verify:production -- https://web-url-audit-tool.vercel.app
 ```
 
-最終検証では8 Test file、126 / 126 TestがPassしました。Production integration verifierも8 / 8 caseがPassしています。実行記録と手動Browser QAの詳細は [docs/QA.md](docs/QA.md) を参照してください。
+最終検証では8 Test file、134 / 134 TestがPassしました。Production integration verifierも8 / 8 caseがPassしています。実行記録と手動Browser QAの詳細は [docs/QA.md](docs/QA.md) を参照してください。
 
 ## Vercel Deployment
 
-Productionは [https://web-url-audit-tool.vercel.app](https://web-url-audit-tool.vercel.app) で公開しています。検証対象Deployment IDは `dpl_3G5NnbMZhC2BXDDgMC3C2YekR5Pi` です。`vercel.json` はNext.js Frameworkと `/api/check` の30秒Function上限を指定しています。
+Productionは [https://web-url-audit-tool.vercel.app](https://web-url-audit-tool.vercel.app) で公開しています。検証対象Deployment IDは `dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX` です。`vercel.json` はNext.js Frameworkと `/api/check` の30秒Function上限を指定しています。
 
 ```bash
 vercel --prod

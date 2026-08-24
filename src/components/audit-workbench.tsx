@@ -42,7 +42,13 @@ import {
 } from "react";
 
 import { downloadAuditCsv, downloadAuditXlsx } from "@/lib/export-report";
-import { demoUrls, extractUrlsFromCsv, parsePastedUrls } from "@/lib/input";
+import {
+  demoUrls,
+  extractUrlsFromCsv,
+  firstHttpOrigin,
+  parsePastedUrls,
+  urlScopeForOrigin,
+} from "@/lib/input";
 import {
   compareRuns,
   duplicateTitleIds,
@@ -188,7 +194,7 @@ function apiFailureResult(job: AuditJob, message: string): AuditResult {
     inputUrl: job.url,
     source: job.source,
     depth: job.depth,
-    scope: "internal",
+    scope: urlScopeForOrigin(job.url, job.baseOrigin),
     status: null,
     statusKind: "failed",
     statusLabel: "確認失敗",
@@ -513,10 +519,12 @@ export function AuditWorkbench() {
       }
       const controller = beginAudit(unique.length, label);
       const completed: AuditResult[] = [];
+      const baseOrigin = firstHttpOrigin(unique);
       const jobs: AuditJob[] = unique.map((url) => ({
         url,
         source,
         depth: 0,
+        baseOrigin,
         respectRobots: false,
       }));
       await runConcurrent(jobs, controller.signal, slowThreshold, (result, job) => {
@@ -669,20 +677,15 @@ export function AuditWorkbench() {
         label: targets.length === 1 ? "URLを再チェック中" : "Error URLを再チェック中",
       });
       const replacements = new Map<string, AuditResult>();
+      const recheckBaseOrigin =
+        firstHttpOrigin(
+          before.filter((result) => result.scope === "internal").map((result) => result.inputUrl),
+        ) ?? firstHttpOrigin(before.map((result) => result.inputUrl));
       const jobs: AuditJob[] = targets.map((result) => ({
         url: result.inputUrl,
         source: result.source,
         depth: result.depth,
-        baseOrigin:
-          result.source === "crawl"
-            ? (() => {
-                try {
-                  return new URL(result.inputUrl).origin;
-                } catch {
-                  return undefined;
-                }
-              })()
-            : undefined,
+        baseOrigin: recheckBaseOrigin,
         respectRobots: result.robotsAllowed !== null,
         replaceId: result.id,
       }));

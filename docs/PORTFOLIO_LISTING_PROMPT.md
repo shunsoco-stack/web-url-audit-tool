@@ -19,7 +19,7 @@
 - 専用アイコン：Globe + Link + Check
 - App icon Path：`web-url-audit-tool/src/app/icon.svg`
 - 実アプリURL：[https://web-url-audit-tool.vercel.app](https://web-url-audit-tool.vercel.app)
-- Vercel Deployment ID：`dpl_3G5NnbMZhC2BXDDgMC3C2YekR5Pi`
+- Vercel Deployment ID：`dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX`
 - GitHub URL：[https://github.com/shunsoco-stack/web-url-audit-tool](https://github.com/shunsoco-stack/web-url-audit-tool)
 - README URL：[https://github.com/shunsoco-stack/web-url-audit-tool/blob/main/README.md](https://github.com/shunsoco-stack/web-url-audit-tool/blob/main/README.md)
 - Repository内README Path：`web-url-audit-tool/README.md`
@@ -179,7 +179,7 @@ AIによる生成・分類・予測はありません。
 - Broken専用View
 - Status Filter
 - Broken / Redirect / Slow / Missing Title / Missing Metadata Filter
-- Internal / External Filter
+- Internal / External Filter（URL一覧は先頭の有効なHTTP(S) URL、Crawlは起点URLのOrigin基準）
 - URL、Final URL、Title、Description、H1、Issue検索
 
 ### Detail / Recheck / Compare
@@ -253,7 +253,8 @@ Demo内の架空企業名「株式会社ミナト」は専用fixtureのHTML内�
 | HTML Body limit | 1,500,000 byte |
 | Response Header limit | 32 KiB |
 | API JSON Body limit | 16 KiB |
-| API in-memory rate bucket | 60 Request / 60秒 / Client Key |
+| API in-memory rate bucket | 240 Request / 60秒 / Client Key |
+| API rate bucket保持上限 | 1,000 Client Key（LRU） |
 | robots.txt Body limit | 128 KiB |
 | robots.txt cache | 最大128 Origin / TTL 10分 |
 
@@ -267,10 +268,14 @@ Demo内の架空企業名「株式会社ミナト」は専用fixtureのHTML内�
 - 401 / 403 / 5xx、取得失敗はFail-closedでDeny
 - Redirect先を含むRequest対象ごとにpolicyを確認
 - Bodyは128 KiBまで取得し、cacheは最大128 Origin、TTL 10分
+- 128 KiBを超えて途中で切れたrobots本文はFail-closedでDeny
+- robots wildcardは線形Matcher、HTML / Anchor抽出は上限付き単方向Scannerで処理
 
 ### 説明上の注意
 
-「SSRF対策を実装」と説明できますが、「SSRFを完全防止」「脆弱性診断済み」「安全性を保証」「WAF相当」とは書かないでください。API Rate LimitとBackend同時Check counterはFunction instanceのmemory上にあるbest-effort制御で、複数Instanceで共有される分散型・永続型の制御ではありません。robots.txtは利用許可や法令判断の代替ではありません。
+「SSRF対策を実装」と説明できますが、「SSRFを完全防止」「脆弱性診断済み」「安全性を保証」「WAF相当」とは書かないでください。API BodyはStreamを16 KiBで打ち切り、Rate bucketは最大1,000 KeyのLRUですが、Rate LimitとBackend同時Check counterはFunction instanceのmemory上にあるbest-effort制御です。複数Instanceで共有される分散型・永続型の制御ではありません。robots.txtは利用許可や法令判断の代替ではありません。
+
+240 Request / 60秒のbucketは、最大100 URLの監査と全件再チェックを同じWindowで扱うための上限です。実際の同時Outbound数はClient 3、Backend全体6、同一Origin 3で別途制御しています。
 
 ## 8. Architecture / Technology
 
@@ -323,9 +328,9 @@ READMEとQAへLinkし、検証内容を過大に言わず掲載してくださ�
   - Private IP Block
 - Local verification：`npm run verify`
 - Production verification：`npm run verify:production -- https://web-url-audit-tool.vercel.app`
-- Unit / module result：8 Test file、126 / 126 Pass
+- Unit / module result：8 Test file、134 / 134 Pass
 - Production integration result：8 / 8 Pass
-- Verified Deployment：`dpl_3G5NnbMZhC2BXDDgMC3C2YekR5Pi`
+- Verified Deployment：`dpl_JDqeoxG6iLqdDgK8jbsXJZUJp7eX`
 
 掲載ページでは上記の実測値を使用し、詳細な実行記録は `web-url-audit-tool/docs/QA.md` を参照してください。将来の更新時は、再検証せずに件数やPassを引き継がないでください。
 

@@ -116,6 +116,72 @@ describe("extractPageData", () => {
     expect(metadata.h1).toHaveLength(300);
     expect(links[0]?.text).toHaveLength(160);
   });
+
+  it("rejects canonical and link URLs above the URL length limit", () => {
+    const oversizedPath = `/${"x".repeat(2_048)}`;
+    const html = `
+      <link rel="canonical" href="${oversizedPath}">
+      <a href="${oversizedPath}">Oversized</a>
+    `;
+
+    const { metadata, links } = extractPageData(html, "https://example.com/");
+
+    expect(metadata.canonical).toBe("");
+    expect(links).toEqual([]);
+  });
+
+  it("ignores metadata and links inside scripts, styles, and comments", () => {
+    const html = `
+      <!-- <meta name="description" content="comment"><a href="/comment">Comment</a> -->
+      <script>
+        const template = '<title>Script title</title><a href="/script">Script</a>';
+      </script>
+      <style>
+        .example::after { content: '<a href="/style">Style</a>'; }
+      </style>
+      <title>Real title</title>
+      <meta name="description" content="Real description">
+      <a href="/real">Real link</a>
+    `;
+
+    const { metadata, links } = extractPageData(html, "https://example.com/");
+
+    expect(metadata.title).toBe("Real title");
+    expect(metadata.description).toBe("Real description");
+    expect(links.map((link) => link.url)).toEqual(["https://example.com/real"]);
+  });
+
+  it(
+    "handles maximum-sized adversarial markup in bounded time",
+    () => {
+      const targetSize = 1_500_000;
+      const fill = (fragment: string) =>
+        fragment.repeat(Math.ceil(targetSize / fragment.length)).slice(0, targetSize);
+      const titleText = "<".repeat(targetSize - "<title></title>".length);
+      const inputs = [
+        `<title>${titleText}</title>`,
+        fill("<h1>heading without a closing tag "),
+        fill('<a href="/missing-close">text '),
+        fill('<meta name="description" content="unterminated"'),
+        fill('<link rel="canonical" href="/unterminated"'),
+      ];
+
+      const startedAt = performance.now();
+      const results = inputs.map((html) =>
+        extractPageData(html, "https://example.com/"),
+      );
+      const elapsedMs = performance.now() - startedAt;
+
+      expect(inputs.every((html) => html.length >= targetSize)).toBe(true);
+      expect(results[0].metadata.title).toHaveLength(300);
+      expect(results[1].metadata.h1Count).toBe(0);
+      expect(results[2].links).toEqual([]);
+      expect(results[3].metadata.description).toBe("");
+      expect(results[4].metadata.canonical).toBe("");
+      expect(elapsedMs).toBeLessThan(5_000);
+    },
+    15_000,
+  );
 });
 
 describe("normalizeTitle", () => {

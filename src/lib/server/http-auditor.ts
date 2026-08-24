@@ -6,6 +6,7 @@ import https from "node:https";
 import { performance } from "node:perf_hooks";
 
 import { extractPageData } from "@/lib/metadata";
+import { urlScopeForOrigin } from "@/lib/input";
 import { isRobotsAllowed } from "@/lib/server/robots";
 import {
   AuditDeadlineError,
@@ -47,6 +48,7 @@ export interface OneHopResponse {
   contentType: string;
   body: string;
   bodyReadable: boolean;
+  bodyTruncated: boolean;
 }
 
 export interface FollowResponse {
@@ -59,6 +61,7 @@ export interface FollowResponse {
   contentType: string;
   body: string;
   bodyReadable: boolean;
+  bodyTruncated: boolean;
 }
 
 export interface RobotsCacheEntry {
@@ -224,6 +227,7 @@ export async function requestOneHop(
                 contentType,
                 body: "",
                 bodyReadable: false,
+                bodyTruncated: false,
               });
               response.destroy();
               return;
@@ -240,6 +244,7 @@ export async function requestOneHop(
                 contentType,
                 body: "",
                 bodyReadable: false,
+                bodyTruncated: false,
               });
               response.destroy();
               return;
@@ -250,12 +255,13 @@ export async function requestOneHop(
             response.on("data", (chunk: Buffer | string) => {
               if (settled) return;
               const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+              if (buffer.length === 0) return;
               const remaining = maxBodyBytes - size;
-              if (remaining > 0) {
-                chunks.push(buffer.subarray(0, remaining));
-                size += Math.min(buffer.length, remaining);
-              }
-              if (size >= maxBodyBytes) {
+              if (remaining <= 0 || buffer.length > remaining) {
+                if (remaining > 0) {
+                  chunks.push(buffer.subarray(0, remaining));
+                  size += remaining;
+                }
                 succeed({
                   url: target.url.toString(),
                   status,
@@ -264,9 +270,13 @@ export async function requestOneHop(
                   contentType,
                   body: Buffer.concat(chunks).toString("utf8"),
                   bodyReadable: true,
+                  bodyTruncated: true,
                 });
                 response.destroy();
+                return;
               }
+              chunks.push(buffer);
+              size += buffer.length;
             });
             response.on("end", () => {
               if (settled) return;
@@ -278,6 +288,7 @@ export async function requestOneHop(
                 contentType,
                 body: Buffer.concat(chunks).toString("utf8"),
                 bodyReadable: true,
+                bodyTruncated: false,
               });
             });
             response.on("error", (error) => {
@@ -375,6 +386,7 @@ export async function followUrl(
     contentType: finalResponse.contentType,
     body: finalResponse.body,
     bodyReadable: finalResponse.bodyReadable,
+    bodyTruncated: finalResponse.bodyTruncated,
   };
 }
 
@@ -416,7 +428,7 @@ async function robotsPermission(
       return true;
     }
     if (response.status >= 200 && response.status < 300) {
-      if (!response.bodyReadable) {
+      if (!response.bodyReadable || response.bodyTruncated) {
         robotsCache.set(key, { expiresAt, status: "deny", content: "" });
         return false;
       }
@@ -445,15 +457,6 @@ function statusDetails(status: number, redirected: boolean): { kind: StatusKind;
   return { kind: "failed", label: "確認失敗" };
 }
 
-function scopeFor(url: string, baseOrigin: string | undefined): "internal" | "external" {
-  if (!baseOrigin) return "internal";
-  try {
-    return new URL(url).origin === new URL(baseOrigin).origin ? "internal" : "external";
-  } catch {
-    return "external";
-  }
-}
-
 function errorResult(
   body: CheckRequestBody,
   code: AuditIssueCode,
@@ -465,7 +468,7 @@ function errorResult(
     inputUrl: body.url,
     source: body.source ?? "direct",
     depth: body.depth ?? 0,
-    scope: scopeFor(body.url, body.baseOrigin),
+    scope: urlScopeForOrigin(body.url, body.baseOrigin),
     status: null,
     statusKind: blocked ? "blocked" : "failed",
     statusLabel: blocked ? "安全上ブロック" : "確認失敗",
@@ -555,7 +558,7 @@ export async function auditUrl(body: CheckRequestBody): Promise<AuditResult> {
       inputUrl: normalizedUrl,
       source: body.source ?? "direct",
       depth: Math.min(3, Math.max(0, body.depth ?? 0)),
-      scope: scopeFor(normalizedUrl, body.baseOrigin),
+      scope: urlScopeForOrigin(normalizedUrl, body.baseOrigin),
       status: response.status,
       statusKind: response.redirectLoop || response.redirectLimit ? "failed" : kind,
       statusLabel: response.redirectLoop

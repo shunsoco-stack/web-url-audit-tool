@@ -31,6 +31,30 @@ export function parsePastedUrls(value: string, limit = 200): string[] {
   return uniqueUrls(value.split(/[\r\n\t ]+/), limit);
 }
 
+export function firstHttpOrigin(values: readonly string[]): string | undefined {
+  for (const value of values) {
+    try {
+      const url = new URL(normalizeInputUrl(value));
+      if (url.protocol === "http:" || url.protocol === "https:") return url.origin;
+    } catch {
+      // Keep looking so an invalid first row does not prevent later URLs from being classified.
+    }
+  }
+  return undefined;
+}
+
+export function urlScopeForOrigin(
+  value: string,
+  baseOrigin: string | undefined,
+): "internal" | "external" {
+  if (!baseOrigin) return "internal";
+  try {
+    return new URL(value).origin === new URL(baseOrigin).origin ? "internal" : "external";
+  } catch {
+    return "external";
+  }
+}
+
 export function parseCsvRows(csv: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];

@@ -102,6 +102,31 @@ describe("isRobotsAllowed", () => {
     expect(isRobotsAllowed(robots, "https://example.com/article?preview=true")).toBe(false);
   });
 
+  it("uses the rightmost wildcard match when calculating the longest match", () => {
+    const robots = `
+      User-agent: *
+      Allow: /shop/item
+      Disallow: /*item
+    `;
+
+    expect(isRobotsAllowed(robots, "https://example.com/shop/item/archive/item")).toBe(false);
+  });
+
+  it("matches adversarial wildcard rules in bounded linear time", () => {
+    const wildcardCount = 1_000;
+    const robots = `
+      User-agent: *
+      Disallow: /${"a*".repeat(wildcardCount)}blocked$
+    `;
+    const targetUrl = `https://example.com/${"a".repeat(40_000)}allowed`;
+
+    const startedAt = performance.now();
+    expect(isRobotsAllowed(robots, targetUrl)).toBe(true);
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(elapsedMs).toBeLessThan(1_000);
+  });
+
   it("allows crawling when no group or rule applies", () => {
     const robots = `
       User-agent: OtherBot
