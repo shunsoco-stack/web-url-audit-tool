@@ -1,0 +1,8 @@
+{
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/check/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
