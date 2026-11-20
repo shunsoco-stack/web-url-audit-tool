@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { LegalFooter } from "@/components/legal-footer";
 
 const appName = "WebサイトURL一括チェック・リンク監査ツール";
 
@@ -34,7 +35,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>{children}
+        <LegalFooter /></body>
     </html>
   );
 }
